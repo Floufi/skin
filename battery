@@ -1,0 +1,546 @@
+[Rainmeter]
+AccurateText=1
+DefaultAlwaysOnTop=-2
+DefaultWindowX=160R
+DefaultWindowY=0
+DefaultUpdateDivider=10
+Update=100
+Group=BatteryMeter
+MouseOverAction=[!SetOption MeterSettingsButton ImageAlpha 255][!UpdateMeter "MeterSettingsButton"][!Redraw]
+MouseLeaveAction=[!SetOption MeterSettingsButton ImageAlpha 0][!UpdateMeter "MeterSettingsButton"][!Redraw]
+MiddleMouseUpAction=[!Refresh]
+; double-click brings up "Power Options"
+LeftMouseDoubleClickAction=[Shell:::{025A5937-A6BE-4686-A844-36FE4BEC8B6D}]
+SkinHeight=(#BgHeight# * #Scale#)
+SkinWidth=(#BgWidth# * #Scale#)
+
+[Metadata]
+Name=Battery Meter
+Author=SilverAzide
+Information=Shows battery activity.||Inspired by Battery Meter gadget by AddGadgets.com.
+License=Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+Version=7.5.0
+
+;###################################################################################################
+;                                           Battery Meter
+;###################################################################################################
+
+[Variables]
+@Include=#@#BatteryVariables.inc
+; background
+BgHeight=94
+BgWidth=160
+ColorBg=0,0,0
+
+; dynamic variables; do not change
+;   animation loop counter
+Loops=0
+
+; battery bitmap frame indices:
+;    0 = 100%
+;    1 = 90%
+;    2 = 80%
+;    3 = 75%
+;    4 = 70%
+;    5 = 65%
+;    6 = 60%
+;    7 = 55%
+;    8 = 50%
+;    9 = 45%
+;   10 = 40%
+;   11 = 35%
+;   12 = 30%
+;   13 = 25%
+;   14 = 20%
+;   15 = 15%
+;   16 = low, warning
+;   17 = low, charging
+;   18 = critical, warning
+;   19 = critical, charging
+;   20 = error
+;   21 = AC line
+BatteryFrame=20
+
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+;                                              Styles
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+
+; default background
+[StyleBackground0]
+Shape=Rectangle 0,0,(#BgWidth# * #Scale#),(#BgHeight# * #Scale#) | Fill Color #ColorBg#,1 | StrokeWidth 0
+Shape2=Rectangle (4 * #Scale#),(4 * #Scale#),((#BgWidth# - 8) * #Scale#),((#BgHeight# - 8) * #Scale#),(4 * #Scale#) | Fill Color #ColorBg#,(#BgAlpha# / 2) | StrokeWidth 0
+Shape3=Rectangle (5 * #Scale#),(5 * #Scale#),((#BgWidth# - 10) * #Scale#),((#BgHeight# - 10) * #Scale#),(3 * #Scale#) | Fill Color #ColorBg#,#BgAlpha# | StrokeWidth 0
+Shape4=Rectangle (6 * #Scale#),(6 * #Scale#),((#BgWidth# - 12) * #Scale#),((#BgHeight# - 12) * #Scale#),(2 * #Scale#) | Fill Color 164,160,160,#BgAlpha# | StrokeWidth 0
+Shape5=Rectangle (7 * #Scale#),(7 * #Scale#),((#BgWidth# - 14) * #Scale#),((#BgHeight# - 14) * #Scale#),(1 * #Scale#) | Fill LinearGradient MyFillGradient | StrokeWidth 0
+MyFillGradient=270 | 70,70,70,#BgAlpha# ; 0.0 | #ColorBg#,#BgAlpha# ; 1.0
+UpdateDivider=-1
+
+; blurred edges background
+[StyleBackground1]
+Shape=Rectangle 0,0,(#BgWidth# * #Scale#),(#BgHeight# * #Scale#) | Fill Color #ColorBg#,1 | StrokeWidth 0
+Shape2=Rectangle (4 * #Scale#),(4 * #Scale#),((#BgWidth# - 8) * #Scale#),((#BgHeight# - 8) * #Scale#),(4 * #Scale#) | Fill Color #ColorBg#,(#BgAlpha# / 3) | StrokeWidth 0
+Shape3=Rectangle (5 * #Scale#),(5 * #Scale#),((#BgWidth# - 10) * #Scale#),((#BgHeight# - 10) * #Scale#),(3 * #Scale#) | Fill Color #ColorBg#,(#BgAlpha# / 3) | StrokeWidth 0
+Shape4=Rectangle (6 * #Scale#),(6 * #Scale#),((#BgWidth# - 12) * #Scale#),((#BgHeight# - 12) * #Scale#),(2 * #Scale#) | Fill Color #ColorBg#,(#BgAlpha# / 3) | StrokeWidth 0
+Shape5=Rectangle (7 * #Scale#),(7 * #Scale#),((#BgWidth# - 14) * #Scale#),((#BgHeight# - 14) * #Scale#),(1 * #Scale#) | Fill Color #ColorBg#,#BgAlpha# | StrokeWidth 0
+UpdateDivider=-1
+
+; solid background
+[StyleBackground2]
+Shape=Rectangle 0,0,(#BgWidth# * #Scale#),(#BgHeight# * #Scale#) | Fill Color #ColorBg#,1 | StrokeWidth 0
+Shape2=Rectangle (4 * #Scale#),(4 * #Scale#),((#BgWidth# - 8) * #Scale#),((#BgHeight# - 8) * #Scale#),(4 * #Scale#) | Fill Color #ColorBg#,(#BgAlpha# / 2) | StrokeWidth 0
+Shape3=Rectangle (5 * #Scale#),(5 * #Scale#),((#BgWidth# - 10) * #Scale#),((#BgHeight# - 10) * #Scale#),(3 * #Scale#) | Fill Color #ColorBg#,#BgAlpha# | StrokeWidth 0
+UpdateDivider=-1
+
+[StyleTextInfo]
+FontFace=#FontName#
+FontSize=#FontSize1#
+FontWeight=#FontWtNormal#
+StringAlign=Left
+AntiAlias=1
+Y=12r
+TransformationMatrix=#Scale#;0;0;#Scale#;#Scale#;#Scale#
+
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+;                                             Measures
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+
+[MeasureOpenBatterySettings]
+Measure=Plugin
+Plugin=RunCommand
+Parameter="start ms-settings:batterysaver"
+UpdateDivider=-1
+
+;------------------------------------------ Battery Power ------------------------------------------
+
+[MeasureBatteryLine]
+; 0 for battery or 1 when plugged in.
+Measure=Plugin
+Plugin=PowerPlugin
+PowerState=ACLine
+IfCondition=(MeasureBatteryLine = 1)
+IfTrueAction=[!ShowMeter "MeterBatteryLineIcon"][!CommandMeasure MeasureLoop "Reset"]
+IfFalseAction=[!HideMeter "MeterBatteryLineIcon"][!HideMeter "MeterBatteryIconAnimated"]
+
+[MeasureBatteryStatus]
+; 0 for no battery, 1 for charging, 2 for critical, 3 for low, or 4 for above low.
+Measure=Plugin
+Plugin=PowerPlugin
+PowerState=Status
+IfCondition=(MeasureBatteryStatus = 0)
+IfTrueAction=[!SetVariable BatteryFrame 20][!UpdateMeter "MeterBatteryIcon"][!DisableMeasureGroup "Battery"][!Redraw]
+IfFalseAction=[!EnableMeasureGroup "Battery"][!Redraw]
+
+[MeasureBatteryPercent]
+; Battery lifetime as a percentage.
+Measure=Plugin
+Plugin=PowerPlugin
+PowerState=Percent
+
+IfCondition=(MeasureBatteryPercent = 100) && (MeasureBatteryLine = 1) && (MeasureBatteryStatus > 0)
+IfTrueAction=[!SetVariable BatteryFrame 0][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition2=(MeasureBatteryPercent = 100) && (MeasureBatteryLine = 0) && (MeasureBatteryStatus > 0)
+IfTrueAction2=[!SetVariable BatteryFrame 0][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition3=(MeasureBatteryPercent > 90) && (MeasureBatteryPercent < 100) && (MeasureBatteryStatus > 0)
+IfTrueAction3=[!SetVariable BatteryFrame 0][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition4=(MeasureBatteryPercent > 80) && (MeasureBatteryPercent <= 90) && (MeasureBatteryStatus > 0)
+IfTrueAction4=[!SetVariable BatteryFrame 1][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition5=(MeasureBatteryPercent > 75) && (MeasureBatteryPercent <= 80) && (MeasureBatteryStatus > 0)
+IfTrueAction5=[!SetVariable BatteryFrame 2][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition6=(MeasureBatteryPercent > 70) && (MeasureBatteryPercent <= 75) && (MeasureBatteryStatus > 0)
+IfTrueAction6=[!SetVariable BatteryFrame 3][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition7=(MeasureBatteryPercent > 65) && (MeasureBatteryPercent <= 70) && (MeasureBatteryStatus > 0)
+IfTrueAction7=[!SetVariable BatteryFrame 4][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition8=(MeasureBatteryPercent > 60) && (MeasureBatteryPercent <= 65) && (MeasureBatteryStatus > 0)
+IfTrueAction8=[!SetVariable BatteryFrame 5][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition9=(MeasureBatteryPercent > 55) && (MeasureBatteryPercent <= 60) && (MeasureBatteryStatus > 0)
+IfTrueAction9=[!SetVariable BatteryFrame 6][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition10=(MeasureBatteryPercent > 50) && (MeasureBatteryPercent <= 55) && (MeasureBatteryStatus > 0)
+IfTrueAction10=[!SetVariable BatteryFrame 7][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition11=(MeasureBatteryPercent > 45) && (MeasureBatteryPercent <= 50) && (MeasureBatteryStatus > 0)
+IfTrueAction11=[!SetVariable BatteryFrame 8][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition12=(MeasureBatteryPercent > 40) && (MeasureBatteryPercent <= 45) && (MeasureBatteryStatus > 0)
+IfTrueAction12=[!SetVariable BatteryFrame 9][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition13=(MeasureBatteryPercent > 35) && (MeasureBatteryPercent <= 40) && (MeasureBatteryStatus > 0)
+IfTrueAction13=[!SetVariable BatteryFrame 10][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition14=(MeasureBatteryPercent > 30) && (MeasureBatteryPercent <= 35) && (MeasureBatteryStatus > 0)
+IfTrueAction14=[!SetVariable BatteryFrame 11][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition15=(MeasureBatteryPercent > 25) && (MeasureBatteryPercent <= 30) && (MeasureBatteryStatus > 0)
+IfTrueAction15=[!SetVariable BatteryFrame 12][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition16=(MeasureBatteryPercent > 20) && (MeasureBatteryPercent <= 25) && (MeasureBatteryStatus > 0)
+IfTrueAction16=[!SetVariable BatteryFrame 13][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+IfCondition17=(MeasureBatteryPercent > 15) && (MeasureBatteryPercent <= 20) && (MeasureBatteryStatus > 0)
+IfTrueAction17=[!SetVariable BatteryFrame 14][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+; between low and 15%, charging or discharging
+IfCondition18=(MeasureBatteryPercent > #BatteryLowPercent#) && (MeasureBatteryPercent <= 15) && (MeasureBatteryStatus > 0)
+IfTrueAction18=[!SetVariable BatteryFrame 15][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+; between critical and low, discharging
+IfCondition19=(MeasureBatteryPercent > #BatteryCriticalPercent#) && (MeasureBatteryPercent <= #BatteryLowPercent#) && (MeasureBatteryLine = 0) && (MeasureBatteryStatus > 0)
+IfTrueAction19=[!SetVariable BatteryFrame 16][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+; between critical and low, charging
+IfCondition20=(MeasureBatteryPercent > #BatteryCriticalPercent#) && (MeasureBatteryPercent <= #BatteryLowPercent#) && (MeasureBatteryLine = 1) && (MeasureBatteryStatus > 0)
+IfTrueAction20=[!SetVariable BatteryFrame 17][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+; critical, discharging
+IfCondition21=(MeasureBatteryPercent <= #BatteryCriticalPercent#) && (MeasureBatteryLine = 0) && (MeasureBatteryStatus > 0)
+IfTrueAction21=[!SetVariable BatteryFrame 18][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+; critical, charging
+IfCondition22=(MeasureBatteryPercent <= #BatteryCriticalPercent#) && (MeasureBatteryLine = 1) && (MeasureBatteryStatus > 0)
+IfTrueAction22=[!SetVariable BatteryFrame 19][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+; error
+IfCondition23=(MeasureBatteryStatus = 0)
+IfTrueAction23=[!SetVariable BatteryFrame 20][!UpdateMeter "MeterBatteryIcon"][!Redraw]
+
+[MeasureBatteryLife]
+; Battery lifetime.
+; "Unknown" = on AC power (infinite lifetime); also reports this while lifetime is being calculated
+Measure=Plugin
+Plugin=PowerPlugin
+PowerState=Lifetime
+Format="%#H hr %M min remaining"
+Substitute="Unknown":"[MeasureBatteryPercent]% remaining"
+DynamicVariables=1
+
+IfCondition=(MeasureBatteryPercent = 100) && (MeasureBatteryStatus > 0)
+IfTrueAction=[!SetOption MeterBatteryLife Text "Fully charged"][!UpdateMeter "MeterBatteryLife"][!Redraw]
+
+IfCondition2=(MeasureBatteryPercent < 100) && (MeasureBatteryStatus > 0) && (MeasureBatteryLine = 1)
+IfTrueAction2=[!SetOption MeterBatteryLife Text "Plugged in, charging"][!UpdateMeter "MeterBatteryLife"][!Redraw]
+
+IfCondition3=(MeasureBatteryPercent < 100) && (MeasureBatteryStatus > 0) && (MeasureBatteryLine = 0)
+IfTrueAction3=[!SetOption MeterBatteryLife Text "%1"][!UpdateMeter "MeterBatteryLife"][!Redraw]
+
+IfCondition4=(MeasureBatteryStatus = 0)
+IfTrueAction4=[!SetOption MeterBatteryLife Text "No battery"][!UpdateMeter "MeterBatteryLife"][!Redraw]
+
+;-------------------------------------------- Animation --------------------------------------------
+
+[MeasureLoop]
+Measure=Loop
+StartValue=15
+EndValue=0
+Increment=-1
+LoopCount=5
+UpdateDivider=1
+OnUpdateAction=[!UpdateMeter "MeterBatteryIconAnimated"][!Redraw]
+IfCondition=(MeasureLoop = 15) && (#Loops# = 0)
+IfTrueAction=[!HideMeter "MeterBatteryIcon"][!ShowMeter "MeterBatteryIconAnimated"][!Redraw]
+IfCondition2=(MeasureLoop = 0) && (#Loops# = 0)
+IfTrueAction2=[!SetVariable Loops 1]
+IfCondition3=(MeasureLoop = 0) && (#Loops# = 1)
+IfTrueAction3=[!SetVariable Loops 2]
+IfCondition4=(MeasureLoop = 0) && (#Loops# = 2)
+IfTrueAction4=[!SetVariable Loops 3]
+IfCondition5=(MeasureLoop = 0) && (#Loops# = 3)
+IfTrueAction5=[!SetVariable Loops 4]
+IfCondition6=(MeasureLoop = 0) && (#Loops# = 4)
+IfTrueAction6=[!SetVariable Loops 0][!HideMeter "MeterBatteryIconAnimated"][!ShowMeter "MeterBatteryIcon"][!Redraw]
+DynamicVariables=1
+
+;----------------------------------------- Battery Status ------------------------------------------
+
+[MeasureBatteryName]
+Measure=Plugin
+Plugin=ActiveNet
+Type=BatDeviceName
+Group=Battery
+UpdateDivider=-1
+
+[MeasureBatteryInstance]
+Measure=Plugin
+Plugin=ActiveNet
+Type=BatInstanceName
+Group=Battery
+UpdateDivider=(#AutoFailover# = 0 ? -1 : 10)
+DynamicVariables=#AutoFailover#
+
+[MeasureBatteryVoltage]
+Measure=Plugin
+Plugin=ActiveNet
+Type=BatVoltage
+Name=[MeasureBatteryInstance]
+Group=Battery
+DynamicVariables=#AutoFailover#
+
+[MeasureChargeRate]
+Measure=Plugin
+Plugin=ActiveNet
+Type=BatChargeRate
+Name=[MeasureBatteryInstance]
+Group=Battery
+DynamicVariables=#AutoFailover#
+
+[MeasureCurrentCharge]
+Measure=Plugin
+Plugin=ActiveNet
+Type=BatRemainingCapacity
+Name=[MeasureBatteryInstance]
+Group=Battery
+DynamicVariables=#AutoFailover#
+
+[CalcMaxCharge]
+Measure=Calc
+Formula=(MeasureCurrentCharge * 100 / MeasureBatteryPercent)
+Group=Battery
+
+[CalcChargeRateAmps]
+Measure=Calc
+Formula=(MeasureChargeRate * 1000 / MeasureBatteryVoltage)
+Group=Battery
+
+[CalcCurrentChargeAmps]
+Measure=Calc
+Formula=(MeasureCurrentCharge * 1000 / MeasureBatteryVoltage)
+Group=Battery
+
+[CalcMaxChargeAmps]
+Measure=Calc
+Formula=(CalcMaxCharge * 1000 / MeasureBatteryVoltage)
+Group=Battery
+
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+;                                               Meters
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+
+;--------------------------------------- Background and Icon ---------------------------------------
+
+[MeterBackground]
+Meter=Shape
+MeterStyle=StyleBackground#BgStyle#
+
+[MeterBatteryIcon]
+Meter=Image
+ImageName="#@#Battery.png"
+ImageCrop=(34 * #BatteryFrame#),0,34,34,1
+Antialias=1
+X=#GridPosX#
+Y=9
+W=34
+H=34
+Hidden=0
+DynamicVariables=1
+TransformationMatrix=#Scale#;0;0;#Scale#;#Scale#;#Scale#
+
+[MeterBatteryIconAnimated]
+Meter=Image
+ImageName="#@#Battery.png"
+ImageCrop=(34 * ([MeasureLoop])),0,34,34,1
+Antialias=1
+X=#GridPosX#
+Y=9
+W=34
+H=34
+Hidden=1
+DynamicVariables=1
+TransformationMatrix=#Scale#;0;0;#Scale#;#Scale#;#Scale#
+
+[MeterBatteryLineIcon]
+Meter=Image
+ImageName="#@#Battery.png"
+ImageCrop=(34 * 21),0,34,34,1
+Antialias=1
+X=#GridPosX#
+Y=9
+W=34
+H=34
+Hidden=1
+TransformationMatrix=#Scale#;0;0;#Scale#;#Scale#;#Scale#
+
+[MeterIconMouseRegion]
+Meter=Image
+SolidColor=0,0,0,1
+X=([MeterBatteryIcon:X] * #Scale#)
+Y=([MeterBatteryIcon:Y] * #Scale#)
+W=([MeterBatteryIcon:W] * #Scale#)
+H=([MeterBatteryIcon:H] * #Scale#)
+ToolTipIcon=Info
+ToolTipText="Battery Saver Settings"
+ToolTipTitle="[MeasureBatteryName]"
+LeftMouseUpAction=[!CommandMeasure MeasureOpenBatterySettings "Run"]
+DynamicVariables=1
+
+[MeterSettingsButton]
+Meter=Image
+ImageName="#@#Settings.png"
+ImageAlpha=0
+Antialias=1
+X=(#BgWidth# - 12 - 11)
+Y=8
+W=12
+H=12
+UpdateDivider=-1
+TransformationMatrix=#Scale#;0;0;#Scale#;#Scale#;#Scale#
+
+[MeterSettingsButtonMouseRegion]
+Meter=Image
+SolidColor=0,0,0,1
+X=([MeterSettingsButton:X] * #Scale#)
+Y=([MeterSettingsButton:Y] * #Scale#)
+W=([MeterSettingsButton:W] * #Scale#)
+H=([MeterSettingsButton:H] * #Scale#)
+ToolTipText="Settings"
+LeftMouseUpAction=[!ToggleConfig "#CURRENTCONFIG#\Config" "Settings.ini"]
+UpdateDivider=-1
+
+;---------------------------------------------- Text -----------------------------------------------
+
+[MeterTitleText]
+Meter=String
+FontColor=#ColorFontTitle#
+FontFace=#FontName#
+FontSize=#FontSize2#
+FontWeight=#FontWtBold#
+StringAlign=Center
+AntiAlias=1
+Text="Battery Meter"
+X=(#BgWidth# / 2 + 2)
+Y=5
+TransformationMatrix=#Scale#;0;0;#Scale#;#Scale#;#Scale#
+UpdateDivider=-1
+
+[MeterBatteryLife]
+Meter=String
+MeasureName=MeasureBatteryLife
+MeterStyle=StyleTextInfo
+FontColor=#ColorFontSubtitle#
+Text="%1"
+ClipString=1
+X=42
+Y=15r
+W=(#BgWidth# - 40 - 10)
+H=15
+
+[MeterBatteryPercent]
+Meter=String
+MeasureName=MeasureBatteryPercent
+MeterStyle=StyleTextInfo
+FontColor=#ColorInfoText1#
+Text="%1%"
+X=42
+
+[MeterBatteryVoltage]
+Meter=String
+MeasureName=MeasureBatteryVoltage
+MeterStyle=StyleTextInfo
+FontColor=#ColorInfoText1#
+StringAlign=Right
+NumOfDecimals=3
+Text="%1 V"
+X=(#BgWidth# - #TextPosX# - 2)
+Y=0r
+
+[MeterChargeRatePrompt]
+Meter=String
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor2#
+Text="Charge Rate:"
+X=#TextPosX#
+
+[MeterChargeRateWatts]
+Meter=String
+MeasureName=MeasureChargeRate
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor2#
+StringAlign=Right
+NumOfDecimals=3
+Text="%1 W"
+X=(#BgWidth# - #TextPosX# - 2)
+Y=0r
+Hidden=#HideWatts#
+
+[MeterChargeRateAmps]
+Meter=String
+MeasureName=CalcChargeRateAmps
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor2#
+StringAlign=Right
+NumOfDecimals=0
+Text="%1 mA"
+X=0r
+Y=0r
+Hidden=((#HideWatts# = 1) ? 0 : 1)
+
+[MeterCurrentChargePrompt]
+Meter=String
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor3#
+Text="Current Charge:"
+X=#TextPosX#
+
+[MeterCurrentChargeWatts]
+Meter=String
+MeasureName=MeasureCurrentCharge
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor3#
+StringAlign=Right
+NumOfDecimals=3
+Text="%1 Wh"
+X=(#BgWidth# - #TextPosX# - 2)
+Y=0r
+Hidden=#HideWatts#
+
+[MeterCurrentChargeAmps]
+Meter=String
+MeasureName=CalcCurrentChargeAmps
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor3#
+StringAlign=Right
+NumOfDecimals=0
+Text="%1 mAh"
+X=0r
+Y=0r
+Hidden=((#HideWatts# = 1) ? 0 : 1)
+
+[MeterMaxChargePrompt]
+Meter=String
+MeasureName=CalcMaxCharge
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor4#
+NumOfDecimals=3
+Text="Max Charge:"
+X=#TextPosX#
+Hidden=#HideWatts#
+
+[MeterMaxChargeWatts]
+Meter=String
+MeasureName=CalcMaxCharge
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor4#
+StringAlign=Right
+NumOfDecimals=3
+Text="%1 Wh"
+X=(#BgWidth# - #TextPosX# - 2)
+Y=0r
+Hidden=#HideWatts#
+
+[MeterMaxChargeAmps]
+Meter=String
+MeasureName=CalcMaxChargeAmps
+MeterStyle=StyleTextInfo
+FontColor=#PaletteColor4#
+StringAlign=Right
+NumOfDecimals=0
+Text="%1 mAh"
+X=0r
+Y=0r
+Hidden=((#HideWatts# = 1) ? 0 : 1)
